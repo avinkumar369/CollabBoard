@@ -10,6 +10,7 @@ import 'services/api_service.dart';
 import 'theme/app_theme.dart';
 import 'screens/auth_wrapper.dart';
 import 'screens/dashboard_screen.dart';
+import 'screens/shared_board_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
@@ -62,6 +63,24 @@ class MyApp extends StatelessWidget {
               '/dashboard': (context) => const DashboardScreen(),
               '/profile': (context) => const ProfileScreen(),
               '/settings': (context) => const SettingsScreen(),
+            },
+            // Opens a read-only board from a share link: '/share/<token>'.
+            // Named routes above are matched first; this only sees names
+            // that are not in the routes table.
+            onGenerateRoute: (settings) {
+              final name = settings.name ?? '';
+
+              if (name.startsWith('/share/')) {
+                final token = name.substring('/share/'.length);
+
+                if (token.isNotEmpty) {
+                  return MaterialPageRoute(
+                    builder: (_) => SharedBoardScreen(shareToken: token),
+                  );
+                }
+              }
+
+              return null;
             },
           );
         },
