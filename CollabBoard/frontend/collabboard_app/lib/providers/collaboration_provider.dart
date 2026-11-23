@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
@@ -183,8 +184,17 @@ class CollaborationProvider extends ChangeNotifier {
     }
   }
 
+  /// How many steps of history to keep. Each step is a full copy of the
+  /// board, so this also caps memory.
+  static const int _maxUndoDepth = 50;
+
   void _pushUndoState() {
     _undoStack.add(List<CanvasObject>.from(_objects));
+
+    if (_undoStack.length > _maxUndoDepth) {
+      _undoStack.removeAt(0);
+    }
+
     _redoStack.clear();
   }
 
@@ -621,26 +631,149 @@ class CollaborationProvider extends ChangeNotifier {
     }
   }
 
-  void undo() {
+  /// Steps back one action, on screen first and then in the database, so the
+  /// board you see after an undo is the board you get after a reload.
+  Future<void> undo() async {
     if (_undoStack.isEmpty) return;
 
-    _redoStack.add(List<CanvasObject>.from(_objects));
+    final current = List<CanvasObject>.from(_objects);
+    final target = _undoStack.removeLast();
 
-    final previous = _undoStack.removeLast();
-    _objects = List<CanvasObject>.from(previous);
+    _redoStack.add(current);
 
+    _objects = List<CanvasObject>.from(target);
+    notifyListeners();
+
+    await _persistDiff(from: current, to: target);
+  }
+
+  /// Steps forward one action, on screen first and then in the database.
+  Future<void> redo() async {
+    if (_redoStack.isEmpty) return;
+
+    final current = List<CanvasObject>.from(_objects);
+    final target = _redoStack.removeLast();
+
+    _undoStack.add(current);
+
+    _objects = List<CanvasObject>.from(target);
+    notifyListeners();
+
+    await _persistDiff(from: current, to: target);
+  }
+
+  /// Brings the database in line with [to], given that the board used to look
+  /// like [from]. Deleted objects are removed, changed ones are updated and
+  /// objects that have to come back are created again.
+  Future<void> _persistDiff({
+    required List<CanvasObject> from,
+    required List<CanvasObject> to,
+  }) async {
+    final boardId = _boardId;
+    final token = getAuthToken?.call();
+
+    if (boardId == null || token == null || token.isEmpty) return;
+
+    final Map<int, CanvasObject> fromById = {
+      for (final object in from)
+        if (object.id != null) object.id!: object,
+    };
+
+    final Map<int, CanvasObject> toById = {
+      for (final object in to)
+        if (object.id != null) object.id!: object,
+    };
+
+    // 1. Objects that exist now but should not exist any more.
+    for (final id in fromById.keys) {
+      if (toById.containsKey(id)) continue;
+
+      try {
+        await _api.deleteCanvasObject(boardId, id, token);
+      } catch (error) {
+        debugPrint('❌ Undo: failed to delete object $id: $error');
+      }
+    }
+
+    // 2. Objects that are in both, but changed.
+    for (final entry in toById.entries) {
+      final previous = fromById[entry.key];
+
+      if (previous == null) continue;
+      if (_sameObjectData(previous, entry.value)) continue;
+
+      try {
+        final payload = entry.value.toJson();
+
+        await _api.updateCanvasObject(
+          boardId,
+          entry.key,
+          {
+            'objectType': payload['object_type'],
+            'objectData': payload['object_data'],
+          },
+          token,
+        );
+      } catch (error) {
+        debugPrint('❌ Undo: failed to update object ${entry.key}: $error');
+      }
+    }
+
+    // 3. Objects that have to come back. They get new database ids.
+    final Map<int, CanvasObject> recreated = {};
+
+    for (final object in to) {
+      final id = object.id;
+
+      if (id == null || fromById.containsKey(id)) continue;
+
+      try {
+        final payload = object.toJson();
+
+        final response = await _api.createCanvasObject(
+          boardId,
+          {
+            'objectType': payload['object_type'],
+            'objectData': payload['object_data'],
+          },
+          token,
+        );
+
+        if (response.statusCode == 201 && response.data is Map) {
+          final data = Map<String, dynamic>.from(
+            response.data as Map,
+          );
+
+          final newId = _toInt(data['id']);
+
+          if (newId != null) {
+            recreated[id] = CanvasObject.fromJson({
+              ...payload,
+              'id': newId,
+            });
+          }
+        }
+      } catch (error) {
+        debugPrint('❌ Undo: failed to re-create object $id: $error');
+      }
+    }
+
+    if (recreated.isNotEmpty) {
+      _objects = _objects
+          .map((object) => recreated[object.id] ?? object)
+          .toList();
+
+      notifyListeners();
+    }
+
+    _errorMessage = null;
     notifyListeners();
   }
 
-  void redo() {
-    if (_redoStack.isEmpty) return;
-
-    _undoStack.add(List<CanvasObject>.from(_objects));
-
-    final next = _redoStack.removeLast();
-    _objects = List<CanvasObject>.from(next);
-
-    notifyListeners();
+  /// Compares the payload the server actually stores, ignoring ids.
+  bool _sameObjectData(CanvasObject a, CanvasObject b) {
+    return jsonEncode(a.toJson()['object_data']) ==
+        jsonEncode(b.toJson()['object_data']);
   }
 
   void leaveBoard() {
