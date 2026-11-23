@@ -1,10 +1,10 @@
-
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../models/canvas_object.dart';
+import '../models/canvas_object_move.dart';
 
 /// Paints persisted canvas objects, active drawing paths and the optional grid.
 class WhiteboardPainter extends CustomPainter {
@@ -14,12 +14,16 @@ class WhiteboardPainter extends CustomPainter {
   final double penThickness;
   final bool showGrid;
 
+  /// Database id of the object currently selected with the Select tool.
+  final int? selectedObjectId;
+
   WhiteboardPainter({
     required List<CanvasObject> objects,
     required List<Offset> currentPath,
     required this.penColor,
     required this.penThickness,
     this.showGrid = true,
+    this.selectedObjectId,
   })  : objects = List<CanvasObject>.unmodifiable(objects),
         currentPath = List<Offset>.unmodifiable(currentPath);
 
@@ -246,6 +250,42 @@ class WhiteboardPainter extends CustomPainter {
       }
     }
 
+    // Selection outline, drawn on top of everything.
+    if (selectedObjectId != null) {
+      CanvasObject? selected;
+
+      for (final obj in objects) {
+        if (obj.id == selectedObjectId) {
+          selected = obj;
+          break;
+        }
+      }
+
+      if (selected != null) {
+        final box = selected.bounds.inflate(4);
+
+        final outline = Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5
+          ..color = const Color(0xFF5B4BDB);
+
+        canvas.drawRect(box, outline);
+
+        final handle = Paint()
+          ..style = PaintingStyle.fill
+          ..color = const Color(0xFF5B4BDB);
+
+        for (final corner in [
+          box.topLeft,
+          box.topRight,
+          box.bottomLeft,
+          box.bottomRight,
+        ]) {
+          canvas.drawCircle(corner, 4, handle);
+        }
+      }
+    }
+
     // Active pen path.
     if (currentPath.isNotEmpty) {
       paint
@@ -270,6 +310,7 @@ class WhiteboardPainter extends CustomPainter {
         !listEquals(oldDelegate.currentPath, currentPath) ||
         oldDelegate.penColor != penColor ||
         oldDelegate.penThickness != penThickness ||
-        oldDelegate.showGrid != showGrid;
+        oldDelegate.showGrid != showGrid ||
+        oldDelegate.selectedObjectId != selectedObjectId;
   }
 }

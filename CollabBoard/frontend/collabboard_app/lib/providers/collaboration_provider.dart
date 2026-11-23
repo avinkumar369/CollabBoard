@@ -1,4 +1,3 @@
-
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -409,6 +408,66 @@ class CollaborationProvider extends ChangeNotifier {
       );
 
       _errorMessage = null;
+      notifyListeners();
+    }
+  }
+
+  CanvasObject? objectById(int? id) {
+    if (id == null) return null;
+
+    for (final object in _objects) {
+      if (object.id == id) return object;
+    }
+
+    return null;
+  }
+
+  /// Deletes exactly one object, by its database id.
+  ///
+  /// Unlike [removeObjectNear] this never touches a neighbour, so it is the
+  /// correct call for a selected object and for "Clear Canvas".
+  Future<void> removeObjectById(int id) async {
+    final index = _objects.indexWhere((object) => object.id == id);
+
+    if (index == -1) return;
+
+    final currentBoardId = _boardId;
+    final token = getAuthToken?.call();
+
+    // Without a board, remove locally.
+    if (currentBoardId == null) {
+      _pushUndoState();
+      _objects.removeAt(index);
+      notifyListeners();
+      return;
+    }
+
+    if (token == null || token.isEmpty) {
+      _errorMessage = 'Authentication token is missing';
+      notifyListeners();
+      return;
+    }
+
+    try {
+      final response = await _api.deleteCanvasObject(
+        currentBoardId,
+        id,
+        token,
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        _pushUndoState();
+        _objects.removeWhere((object) => object.id == id);
+        _errorMessage = null;
+        notifyListeners();
+      } else {
+        throw Exception(
+          'Unexpected delete response: ${response.statusCode}',
+        );
+      }
+    } catch (error) {
+      debugPrint('❌ Failed to delete object $id: $error');
+      _errorMessage = 'Failed to delete object';
       notifyListeners();
     }
   }

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/board.dart';
 import '../models/canvas_tool.dart';
 import '../models/canvas_object.dart';
+import '../models/canvas_object_move.dart';
 import '../providers/collaboration_provider.dart';
 import '../widgets/whiteboard_painter.dart';
 import '../widgets/share_dialog.dart';
@@ -34,6 +35,9 @@ class _BoardWorkspaceScreenState extends State<BoardWorkspaceScreen> {
   bool _showPropertiesPanel = true;
   bool _didApplyInitialPanelVisibility = false;
   double _panTravel = 0;
+
+  /// Database id of the object selected with the Select tool.
+  int? _selectedObjectId;
 
   @override
   void initState() {
@@ -157,13 +161,68 @@ class _BoardWorkspaceScreenState extends State<BoardWorkspaceScreen> {
     final tool = collab.selectedTool;
     final local = _getLocalPosition(details.globalPosition);
 
-    if (tool == CanvasTool.text) {
+    // The selection only makes sense while the Select tool is active.
+    if (tool != CanvasTool.select && _selectedObjectId != null) {
+      setState(() {
+        _selectedObjectId = null;
+      });
+    }
+
+    if (tool == CanvasTool.select) {
+      _selectObjectAt(local, collab);
+    } else if (tool == CanvasTool.text) {
       _addTextAt(local, collab);
     } else if (tool == CanvasTool.sticky) {
       _addStickyNoteAt(local, collab);
     } else if (tool == CanvasTool.eraser) {
       collab.removeObjectNear(local, 20.0);
     }
+  }
+
+  /// Picks the topmost object under [point], or clears the selection.
+  void _selectObjectAt(Offset point, CollaborationProvider collab) {
+    final objects = collab.objects;
+
+    // Later objects are painted on top, so search backwards.
+    for (var i = objects.length - 1; i >= 0; i--) {
+      final object = objects[i];
+
+      if (object.id == null) continue;
+
+      if (object.bounds.inflate(6).contains(point) ||
+          object.isNear(point, 12)) {
+        setState(() {
+          _selectedObjectId = object.id;
+        });
+        return;
+      }
+    }
+
+    setState(() {
+      _selectedObjectId = null;
+    });
+  }
+
+  Future<void> _deleteSelectedObject() async {
+    final id = _selectedObjectId;
+
+    if (id == null) return;
+
+    final collab = Provider.of<CollaborationProvider>(
+      context,
+      listen: false,
+    );
+
+    setState(() {
+      _selectedObjectId = null;
+    });
+
+    await collab.removeObjectById(id);
+
+    if (!mounted) return;
+
+    final error = collab.errorMessage;
+    if (error != null) _showSnack(error);
   }
 
   void _handlePanStart(
@@ -925,6 +984,7 @@ class _BoardWorkspaceScreenState extends State<BoardWorkspaceScreen> {
                               penColor: collab.selectedColor,
                               penThickness: collab.penThickness,
                               showGrid: collab.showGrid,
+                              selectedObjectId: _selectedObjectId,
                             ),
                           ),
                         ),
@@ -1242,6 +1302,23 @@ class _BoardWorkspaceScreenState extends State<BoardWorkspaceScreen> {
                           ),
                         ),
                       ],
+                    ),
+                  ),
+                ),
+
+              // DELETE SELECTED OBJECT
+              if (_selectedObjectId != null)
+                Positioned(
+                  right: 12,
+                  bottom: 72,
+                  child: FloatingActionButton.small(
+                    heroTag: 'delete-selected',
+                    backgroundColor: Colors.red,
+                    tooltip: 'Delete selected object',
+                    onPressed: _deleteSelectedObject,
+                    child: const Icon(
+                      Icons.delete_outline,
+                      color: Colors.white,
                     ),
                   ),
                 ),

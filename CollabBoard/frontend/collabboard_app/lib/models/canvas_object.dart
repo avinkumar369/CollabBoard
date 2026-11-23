@@ -86,15 +86,15 @@ class PathObject extends CanvasObject {
 
   @override
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'user_id': userId,
-        'object_type': 'path',
-        'object_data': {
-          'points': points.map((p) => {'x': p.dx, 'y': p.dy}).toList(),
-          'color': CanvasObject._colorToHex(color),
-          'thickness': thickness,
-        },
-      };
+    'id': id,
+    'user_id': userId,
+    'object_type': 'path',
+    'object_data': {
+      'points': points.map((p) => {'x': p.dx, 'y': p.dy}).toList(),
+      'color': CanvasObject._colorToHex(color),
+      'thickness': thickness,
+    },
+  };
 
   factory PathObject.fromData({int? id, int? userId, required Map<String, dynamic> data}) {
     final List pointsList = data['points'] as List? ?? [];
@@ -131,16 +131,16 @@ class RectObject extends CanvasObject {
 
   @override
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'user_id': userId,
-        'object_type': 'rect',
-        'object_data': {
-          'start': {'x': start.dx, 'y': start.dy},
-          'end': {'x': end.dx, 'y': end.dy},
-          'color': CanvasObject._colorToHex(color),
-          'thickness': thickness,
-        },
-      };
+    'id': id,
+    'user_id': userId,
+    'object_type': 'rect',
+    'object_data': {
+      'start': {'x': start.dx, 'y': start.dy},
+      'end': {'x': end.dx, 'y': end.dy},
+      'color': CanvasObject._colorToHex(color),
+      'thickness': thickness,
+    },
+  };
 
   factory RectObject.fromData({int? id, int? userId, required Map<String, dynamic> data}) {
     final startData = data['start'] as Map<String, dynamic>? ?? {'x': 0.0, 'y': 0.0};
@@ -179,16 +179,16 @@ class CircleObject extends CanvasObject {
 
   @override
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'user_id': userId,
-        'object_type': 'circle',
-        'object_data': {
-          'center': {'x': center.dx, 'y': center.dy},
-          'edge': {'x': edge.dx, 'y': edge.dy},
-          'color': CanvasObject._colorToHex(color),
-          'thickness': thickness,
-        },
-      };
+    'id': id,
+    'user_id': userId,
+    'object_type': 'circle',
+    'object_data': {
+      'center': {'x': center.dx, 'y': center.dy},
+      'edge': {'x': edge.dx, 'y': edge.dy},
+      'color': CanvasObject._colorToHex(color),
+      'thickness': thickness,
+    },
+  };
 
   factory CircleObject.fromData({int? id, int? userId, required Map<String, dynamic> data}) {
     final centerData = data['center'] as Map<String, dynamic>? ?? {'x': 0.0, 'y': 0.0};
@@ -227,16 +227,16 @@ class TriangleObject extends CanvasObject {
 
   @override
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'user_id': userId,
-        'object_type': 'triangle',
-        'object_data': {
-          'start': {'x': start.dx, 'y': start.dy},
-          'end': {'x': end.dx, 'y': end.dy},
-          'color': CanvasObject._colorToHex(color),
-          'thickness': thickness,
-        },
-      };
+    'id': id,
+    'user_id': userId,
+    'object_type': 'triangle',
+    'object_data': {
+      'start': {'x': start.dx, 'y': start.dy},
+      'end': {'x': end.dx, 'y': end.dy},
+      'color': CanvasObject._colorToHex(color),
+      'thickness': thickness,
+    },
+  };
 
   factory TriangleObject.fromData({int? id, int? userId, required Map<String, dynamic> data}) {
     final startData = data['start'] as Map<String, dynamic>? ?? {'x': 0.0, 'y': 0.0};
@@ -273,16 +273,16 @@ class LineObject extends CanvasObject {
 
   @override
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'user_id': userId,
-        'object_type': 'line',
-        'object_data': {
-          'start': {'x': start.dx, 'y': start.dy},
-          'end': {'x': end.dx, 'y': end.dy},
-          'color': CanvasObject._colorToHex(color),
-          'thickness': thickness,
-        },
-      };
+    'id': id,
+    'user_id': userId,
+    'object_type': 'line',
+    'object_data': {
+      'start': {'x': start.dx, 'y': start.dy},
+      'end': {'x': end.dx, 'y': end.dy},
+      'color': CanvasObject._colorToHex(color),
+      'thickness': thickness,
+    },
+  };
 
   factory LineObject.fromData({int? id, int? userId, required Map<String, dynamic> data}) {
     final startData = data['start'] as Map<String, dynamic>? ?? {'x': 0.0, 'y': 0.0};
@@ -319,16 +319,16 @@ class ArrowObject extends CanvasObject {
 
   @override
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'user_id': userId,
-        'object_type': 'arrow',
-        'object_data': {
-          'start': {'x': start.dx, 'y': start.dy},
-          'end': {'x': end.dx, 'y': end.dy},
-          'color': CanvasObject._colorToHex(color),
-          'thickness': thickness,
-        },
-      };
+    'id': id,
+    'user_id': userId,
+    'object_type': 'arrow',
+    'object_data': {
+      'start': {'x': start.dx, 'y': start.dy},
+      'end': {'x': end.dx, 'y': end.dy},
+      'color': CanvasObject._colorToHex(color),
+      'thickness': thickness,
+    },
+  };
 
   factory ArrowObject.fromData({int? id, int? userId, required Map<String, dynamic> data}) {
     final startData = data['start'] as Map<String, dynamic>? ?? {'x': 0.0, 'y': 0.0};
@@ -367,16 +367,16 @@ class DiamondObject extends CanvasObject {
 
   @override
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'user_id': userId,
-        'object_type': 'diamond',
-        'object_data': {
-          'start': {'x': start.dx, 'y': start.dy},
-          'end': {'x': end.dx, 'y': end.dy},
-          'color': CanvasObject._colorToHex(color),
-          'thickness': thickness,
-        },
-      };
+    'id': id,
+    'user_id': userId,
+    'object_type': 'diamond',
+    'object_data': {
+      'start': {'x': start.dx, 'y': start.dy},
+      'end': {'x': end.dx, 'y': end.dy},
+      'color': CanvasObject._colorToHex(color),
+      'thickness': thickness,
+    },
+  };
 
   factory DiamondObject.fromData({int? id, int? userId, required Map<String, dynamic> data}) {
     final startData = data['start'] as Map<String, dynamic>? ?? {'x': 0.0, 'y': 0.0};
@@ -411,15 +411,15 @@ class TextObject extends CanvasObject {
 
   @override
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'user_id': userId,
-        'object_type': 'text',
-        'object_data': {
-          'position': {'x': position.dx, 'y': position.dy},
-          'text': text,
-          'color': CanvasObject._colorToHex(color),
-        },
-      };
+    'id': id,
+    'user_id': userId,
+    'object_type': 'text',
+    'object_data': {
+      'position': {'x': position.dx, 'y': position.dy},
+      'text': text,
+      'color': CanvasObject._colorToHex(color),
+    },
+  };
 
   factory TextObject.fromData({int? id, int? userId, required Map<String, dynamic> data}) {
     final posData = data['position'] as Map<String, dynamic>? ?? {'x': 0.0, 'y': 0.0};
@@ -456,15 +456,15 @@ class StickyNoteObject extends CanvasObject {
 
   @override
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'user_id': userId,
-        'object_type': 'sticky',
-        'object_data': {
-          'position': {'x': position.dx, 'y': position.dy},
-          'text': text,
-          'color': CanvasObject._colorToHex(color),
-        },
-      };
+    'id': id,
+    'user_id': userId,
+    'object_type': 'sticky',
+    'object_data': {
+      'position': {'x': position.dx, 'y': position.dy},
+      'text': text,
+      'color': CanvasObject._colorToHex(color),
+    },
+  };
 
   factory StickyNoteObject.fromData({int? id, int? userId, required Map<String, dynamic> data}) {
     final posData = data['position'] as Map<String, dynamic>? ?? {'x': 0.0, 'y': 0.0};
