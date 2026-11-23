@@ -110,6 +110,12 @@ class ApiService {
   Future<Response> deleteCanvasObject(int boardId, int objectId, String token) =>
       _dio.delete('/boards/$boardId/objects/$objectId', options: Options(headers: {'Authorization': 'Bearer $token'}));
 
+  // Public sharing (no login required)
+  Future<Response> getSharedBoard(String shareToken) =>
+      _dio.get('/boards/share/$shareToken');
+  Future<Response> createShareLink(int boardId, String token, {bool rotate = false}) =>
+      _dio.post('/boards/$boardId/share', data: {'rotate': rotate}, options: Options(headers: {'Authorization': 'Bearer $token'}));
+
   // Invitations
   Future<Response> createInvitation(int boardId, Map<String, dynamic> data, String token) =>
       _dio.post('/boards/$boardId/invitations', data: data, options: Options(headers: {'Authorization': 'Bearer $token'}));

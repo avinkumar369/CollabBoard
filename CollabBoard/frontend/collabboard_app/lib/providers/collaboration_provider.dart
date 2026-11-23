@@ -141,6 +141,45 @@ class CollaborationProvider extends ChangeNotifier {
     _socket.emitCursorMoved(currentBoardId, position.dx, position.dy);
   }
 
+  /// Asks the server for this board's read-only share token.
+  /// Returns null when the request fails, and sets [errorMessage].
+  Future<String?> createShareLink({bool rotate = false}) async {
+    final boardId = _boardId;
+    final token = getAuthToken?.call();
+
+    if (boardId == null || token == null || token.isEmpty) {
+      _errorMessage = 'Authentication token is missing';
+      notifyListeners();
+      return null;
+    }
+
+    try {
+      final response = await _api.createShareLink(
+        boardId,
+        token,
+        rotate: rotate,
+      );
+
+      if (response.statusCode == 200 && response.data is Map) {
+        final data = Map<String, dynamic>.from(response.data as Map);
+
+        _errorMessage = null;
+        notifyListeners();
+
+        return data['shareToken'] as String?;
+      }
+
+      throw Exception('Unexpected response: ${response.statusCode}');
+    } catch (error) {
+      debugPrint('❌ Failed to create a share link: $error');
+
+      _errorMessage = 'Failed to create a share link';
+      notifyListeners();
+
+      return null;
+    }
+  }
+
   void _startCursorPruning() {
     _cursorPruneTimer?.cancel();
 
