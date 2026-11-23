@@ -1,0 +1,10 @@
+node_modules/
+.env
+/dist
+/build
+/.dart_tool
+/.packages
+.pub
+.dart_tool/
+.idea/
+*.iml

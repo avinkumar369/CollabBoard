@@ -1,0 +1,15 @@
+enum CanvasTool {
+  select,
+  hand,
+  pen,
+  eraser,
+  text,
+  sticky,
+  rectangle,
+  circle,
+  triangle,
+  diamond,
+  arrow,
+  connector,
+  image,
+}
