@@ -472,6 +472,71 @@ class CollaborationProvider extends ChangeNotifier {
     }
   }
 
+  /// Replaces an existing object: locally first, so the canvas responds
+  /// immediately, then through REST. On failure the object is put back the
+  /// way it was, so the screen never disagrees with the database.
+  Future<void> updateObject(CanvasObject object) async {
+    final id = object.id;
+
+    if (id == null) return;
+
+    final index = _objects.indexWhere((item) => item.id == id);
+
+    if (index == -1) return;
+
+    final previous = _objects[index];
+
+    _pushUndoState();
+    _objects[index] = object;
+    notifyListeners();
+
+    final currentBoardId = _boardId;
+    final token = getAuthToken?.call();
+
+    if (currentBoardId == null) return;
+
+    if (token == null || token.isEmpty) {
+      _errorMessage = 'Authentication token is missing';
+      notifyListeners();
+      return;
+    }
+
+    final jsonPayload = object.toJson();
+
+    try {
+      final response = await _api.updateCanvasObject(
+        currentBoardId,
+        id,
+        {
+          'objectType': jsonPayload['object_type'],
+          'objectData': jsonPayload['object_data'],
+        },
+        token,
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        _errorMessage = null;
+        notifyListeners();
+      } else {
+        throw Exception(
+          'Unexpected update response: ${response.statusCode}',
+        );
+      }
+    } catch (error) {
+      debugPrint('❌ Failed to update object $id: $error');
+
+      _errorMessage = 'Failed to save the change';
+
+      final currentIndex = _objects.indexWhere((item) => item.id == id);
+
+      if (currentIndex != -1) {
+        _objects[currentIndex] = previous;
+      }
+
+      notifyListeners();
+    }
+  }
+
   void undo() {
     if (_undoStack.isEmpty) return;
 

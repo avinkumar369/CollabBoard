@@ -39,6 +39,11 @@ class _BoardWorkspaceScreenState extends State<BoardWorkspaceScreen> {
   /// Database id of the object selected with the Select tool.
   int? _selectedObjectId;
 
+  // Drag-to-move state for the Select tool.
+  Offset? _dragOrigin;
+  CanvasObject? _dragSource;
+  CanvasObject? _dragPreview;
+
   @override
   void initState() {
     super.initState();
@@ -179,11 +184,14 @@ class _BoardWorkspaceScreenState extends State<BoardWorkspaceScreen> {
     }
   }
 
-  /// Picks the topmost object under [point], or clears the selection.
-  void _selectObjectAt(Offset point, CollaborationProvider collab) {
+  /// Topmost object under [point], or null when the point is empty canvas.
+  /// Later objects are painted on top, so search backwards.
+  CanvasObject? _topmostObjectAt(
+      Offset point,
+      CollaborationProvider collab,
+      ) {
     final objects = collab.objects;
 
-    // Later objects are painted on top, so search backwards.
     for (var i = objects.length - 1; i >= 0; i--) {
       final object = objects[i];
 
@@ -191,16 +199,82 @@ class _BoardWorkspaceScreenState extends State<BoardWorkspaceScreen> {
 
       if (object.bounds.inflate(6).contains(point) ||
           object.isNear(point, 12)) {
-        setState(() {
-          _selectedObjectId = object.id;
-        });
-        return;
+        return object;
       }
     }
 
+    return null;
+  }
+
+  /// Picks the topmost object under [point], or clears the selection.
+  void _selectObjectAt(Offset point, CollaborationProvider collab) {
+    final object = _topmostObjectAt(point, collab);
+
     setState(() {
-      _selectedObjectId = null;
+      _selectedObjectId = object?.id;
     });
+  }
+
+  /// Starts a drag: on the selected object, or on whatever is under the
+  /// finger (which then becomes the selection).
+  void _beginDragSelected(Offset point, CollaborationProvider collab) {
+    final selectedId = _selectedObjectId;
+    final selected =
+    selectedId == null ? null : collab.objectById(selectedId);
+
+    if (selected != null && selected.bounds.inflate(8).contains(point)) {
+      setState(() {
+        _dragOrigin = point;
+        _dragSource = selected;
+        _dragPreview = selected;
+      });
+      return;
+    }
+
+    final hit = _topmostObjectAt(point, collab);
+
+    setState(() {
+      _selectedObjectId = hit?.id;
+      _dragOrigin = hit == null ? null : point;
+      _dragSource = hit;
+      _dragPreview = hit;
+    });
+  }
+
+  /// Follows the finger. The canvas paints [_dragPreview] in place of the
+  /// saved object, so nothing is sent to the server until the drag ends.
+  void _updateDragSelected(Offset point) {
+    final origin = _dragOrigin;
+    final source = _dragSource;
+
+    if (origin == null || source == null) return;
+
+    setState(() {
+      _dragPreview = source.movedBy(point - origin);
+    });
+  }
+
+  Future<void> _endDragSelected(CollaborationProvider collab) async {
+    final preview = _dragPreview;
+    final source = _dragSource;
+
+    setState(() {
+      _dragOrigin = null;
+      _dragSource = null;
+      _dragPreview = null;
+    });
+
+    if (preview == null || source == null) return;
+
+    // A tap, not a move.
+    if (preview.bounds == source.bounds) return;
+
+    await collab.updateObject(preview);
+
+    if (!mounted) return;
+
+    final error = collab.errorMessage;
+    if (error != null) _showSnack(error);
   }
 
   Future<void> _deleteSelectedObject() async {
@@ -236,6 +310,11 @@ class _BoardWorkspaceScreenState extends State<BoardWorkspaceScreen> {
     }
 
     final local = _getLocalPosition(details.globalPosition);
+
+    if (tool == CanvasTool.select) {
+      _beginDragSelected(local, collab);
+      return;
+    }
 
     if (tool == CanvasTool.pen) {
       _currentPath = [local];
@@ -276,6 +355,11 @@ class _BoardWorkspaceScreenState extends State<BoardWorkspaceScreen> {
       return;
     }
 
+    if (tool == CanvasTool.select) {
+      _updateDragSelected(local);
+      return;
+    }
+
     if (tool == CanvasTool.pen) {
       setState(() {
         _currentPath.add(local);
@@ -301,6 +385,11 @@ class _BoardWorkspaceScreenState extends State<BoardWorkspaceScreen> {
     final tool = collab.selectedTool;
 
     if (tool == CanvasTool.hand) {
+      return;
+    }
+
+    if (tool == CanvasTool.select) {
+      _endDragSelected(collab);
       return;
     }
 
@@ -715,20 +804,14 @@ class _BoardWorkspaceScreenState extends State<BoardWorkspaceScreen> {
                 );
 
                 if (confirm == true && mounted) {
-                  for (final obj
-                  in List<CanvasObject>.from(collab.objects)) {
-                    if (obj.id != null) {
-                      await collab.removeObjectNear(
-                        obj is TextObject
-                            ? obj.position
-                            : obj is StickyNoteObject
-                            ? obj.position
-                            : Offset.zero,
-                        obj is TextObject || obj is StickyNoteObject
-                            ? 100
-                            : 99999,
-                      );
-                    }
+                  // Delete by id: exact, and never touches a neighbour.
+                  final ids = collab.objects
+                      .map((object) => object.id)
+                      .whereType<int>()
+                      .toList();
+
+                  for (final id in ids) {
+                    await collab.removeObjectById(id);
                   }
 
                   if (mounted) {
@@ -795,6 +878,21 @@ class _BoardWorkspaceScreenState extends State<BoardWorkspaceScreen> {
       builder: (context, collab, _) {
         final isHandTool =
             collab.selectedTool == CanvasTool.hand;
+
+        // While dragging, paint the moved copy in place of the saved object.
+        final dragPreview = _dragPreview;
+        final List<CanvasObject> painterObjects;
+
+        if (dragPreview == null) {
+          painterObjects = collab.objects;
+        } else {
+          painterObjects = collab.objects
+              .map<CanvasObject>(
+                (object) =>
+            object.id == dragPreview.id ? dragPreview : object,
+          )
+              .toList();
+        }
 
         return Scaffold(
           appBar: AppBar(
@@ -979,7 +1077,7 @@ class _BoardWorkspaceScreenState extends State<BoardWorkspaceScreen> {
                           child: CustomPaint(
                             size: Size.infinite,
                             painter: WhiteboardPainter(
-                              objects: collab.objects,
+                              objects: painterObjects,
                               currentPath: _currentPath,
                               penColor: collab.selectedColor,
                               penThickness: collab.penThickness,
