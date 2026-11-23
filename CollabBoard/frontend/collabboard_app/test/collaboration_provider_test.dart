@@ -1,9 +1,9 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../lib/models/canvas_object.dart';
-import '../lib/models/canvas_tool.dart';
-import '../lib/providers/collaboration_provider.dart';
+import 'package:collabboard_app/models/canvas_object.dart';
+import 'package:collabboard_app/models/canvas_tool.dart';
+import 'package:collabboard_app/providers/collaboration_provider.dart';
 
 CanvasObject rectangle() => RectObject(
   start: const Offset(10, 10),
@@ -114,3 +114,5 @@ void main() {
     });
   });
 }
+
+

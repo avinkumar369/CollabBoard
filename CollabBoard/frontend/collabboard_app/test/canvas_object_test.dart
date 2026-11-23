@@ -1,8 +1,8 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../lib/models/canvas_object.dart';
-import '../lib/models/canvas_object_move.dart';
+import 'package:collabboard_app/models/canvas_object.dart';
+import 'package:collabboard_app/models/canvas_object_move.dart';
 
 void main() {
   const color = Color(0xFF5B4BDB);
@@ -223,4 +223,6 @@ void main() {
     });
   });
 }
+
+
 
