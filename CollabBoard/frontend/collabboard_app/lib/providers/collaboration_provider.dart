@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../models/canvas_object.dart';
 import '../models/canvas_tool.dart';
+import '../models/remote_cursor.dart';
 import '../services/api_service.dart';
 import '../services/socket_service.dart';
 
@@ -66,6 +67,25 @@ class CollaborationProvider extends ChangeNotifier {
   StreamSubscription? _subObjCreated;
   StreamSubscription? _subObjUpdated;
   StreamSubscription? _subObjDeleted;
+  StreamSubscription? _subCursorMoved;
+
+  // Live cursors of the other people in the board.
+  final Map<int, RemoteCursor> _cursors = {};
+  final Map<int, DateTime> _cursorSeen = {};
+  Timer? _cursorPruneTimer;
+
+  /// One colour per person, derived from their user id so everybody sees the
+  /// same colour for the same user.
+  static const List<Color> _cursorColors = [
+    Color(0xFF5B4BDB),
+    Color(0xFFE5484D),
+    Color(0xFF2FA84F),
+    Color(0xFFF0A020),
+    Color(0xFF1E88E5),
+    Color(0xFF9C27B0),
+    Color(0xFF00ACC1),
+    Color(0xFFD81B60),
+  ];
 
   CollaborationProvider({this.getAuthToken});
 
@@ -73,6 +93,7 @@ class CollaborationProvider extends ChangeNotifier {
   int? get boardId => _boardId;
   List<CanvasObject> get objects => List.unmodifiable(_objects);
   List<ActiveUser> get activeUsers => List.unmodifiable(_activeUsers);
+  List<RemoteCursor> get cursors => List.unmodifiable(_cursors.values);
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   bool get canUndo => _undoStack.isNotEmpty;
@@ -107,6 +128,43 @@ class CollaborationProvider extends ChangeNotifier {
   void setZoom(double zoom) {
     _zoomLevel = zoom.clamp(0.5, 3.0);
     notifyListeners();
+  }
+
+  /// Sends this device's pointer to everyone else on the board.
+  /// [position] must already be in canvas coordinates.
+  void sendCursor(Offset position) {
+    final currentBoardId = _boardId;
+
+    if (currentBoardId == null) return;
+
+    _socket.emitCursorMoved(currentBoardId, position.dx, position.dy);
+  }
+
+  void _startCursorPruning() {
+    _cursorPruneTimer?.cancel();
+
+    _cursorPruneTimer = Timer.periodic(
+      const Duration(seconds: 3),
+          (_) {
+        final cutoff = DateTime.now().subtract(
+          const Duration(seconds: 10),
+        );
+
+        final stale = _cursorSeen.entries
+            .where((entry) => entry.value.isBefore(cutoff))
+            .map((entry) => entry.key)
+            .toList();
+
+        if (stale.isEmpty) return;
+
+        for (final id in stale) {
+          _cursorSeen.remove(id);
+          _cursors.remove(id);
+        }
+
+        notifyListeners();
+      },
+    );
   }
 
   // Safely add or replace an object using its database ID.
@@ -204,6 +262,7 @@ class CollaborationProvider extends ChangeNotifier {
     _subObjCreated?.cancel();
     _subObjUpdated?.cancel();
     _subObjDeleted?.cancel();
+    _subCursorMoved?.cancel();
 
     _subActiveUsers = _socket.onActiveUsers.listen((list) {
       _activeUsers = list.map((item) {
@@ -256,6 +315,31 @@ class CollaborationProvider extends ChangeNotifier {
         }
       }
     });
+
+    _subCursorMoved = _socket.onCursorMoved.listen((json) {
+      final userId = _toInt(json['userId'] ?? json['user_id']);
+      final position = json['position'];
+
+      if (userId == null || position is! Map) return;
+
+      final x = (position['x'] as num?)?.toDouble();
+      final y = (position['y'] as num?)?.toDouble();
+
+      if (x == null || y == null) return;
+
+      _cursors[userId] = RemoteCursor(
+        userId: userId,
+        name: json['name'] as String? ?? 'User',
+        color: _cursorColors[userId.abs() % _cursorColors.length],
+        position: Offset(x, y),
+      );
+
+      _cursorSeen[userId] = DateTime.now();
+
+      notifyListeners();
+    });
+
+    _startCursorPruning();
   }
 
   // CREATE:
@@ -569,11 +653,18 @@ class CollaborationProvider extends ChangeNotifier {
     _subObjCreated?.cancel();
     _subObjUpdated?.cancel();
     _subObjDeleted?.cancel();
+    _subCursorMoved?.cancel();
+    _cursorPruneTimer?.cancel();
 
     _subActiveUsers = null;
     _subObjCreated = null;
     _subObjUpdated = null;
     _subObjDeleted = null;
+    _subCursorMoved = null;
+    _cursorPruneTimer = null;
+
+    _cursors.clear();
+    _cursorSeen.clear();
 
     _boardId = null;
     _objects.clear();

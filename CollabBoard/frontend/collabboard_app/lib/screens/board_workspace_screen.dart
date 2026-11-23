@@ -51,6 +51,9 @@ class _BoardWorkspaceScreenState extends State<BoardWorkspaceScreen> {
   /// Visible area, used to zoom around the centre of the screen.
   Size _viewportSize = Size.zero;
 
+  // Throttle for broadcasting this device's pointer.
+  DateTime _lastCursorSent = DateTime.fromMillisecondsSinceEpoch(0);
+
   @override
   void initState() {
     super.initState();
@@ -175,6 +178,8 @@ class _BoardWorkspaceScreenState extends State<BoardWorkspaceScreen> {
     final tool = collab.selectedTool;
     final local = _getLocalPosition(details.globalPosition);
 
+    _emitCursor(local, collab);
+
     // The selection only makes sense while the Select tool is active.
     if (tool != CanvasTool.select && _selectedObjectId != null) {
       setState(() {
@@ -191,6 +196,17 @@ class _BoardWorkspaceScreenState extends State<BoardWorkspaceScreen> {
     } else if (tool == CanvasTool.eraser) {
       collab.removeObjectNear(local, 20.0);
     }
+  }
+
+  /// Sends this device's pointer to the other people on the board.
+  /// Throttled: at most one event every 50 ms.
+  void _emitCursor(Offset local, CollaborationProvider collab) {
+    final now = DateTime.now();
+
+    if (now.difference(_lastCursorSent).inMilliseconds < 50) return;
+
+    _lastCursorSent = now;
+    collab.sendCursor(local);
   }
 
   /// Topmost object under [point], or null when the point is empty canvas.
@@ -320,6 +336,8 @@ class _BoardWorkspaceScreenState extends State<BoardWorkspaceScreen> {
 
     final local = _getLocalPosition(details.globalPosition);
 
+    _emitCursor(local, collab);
+
     if (tool == CanvasTool.select) {
       _beginDragSelected(local, collab);
       return;
@@ -363,6 +381,8 @@ class _BoardWorkspaceScreenState extends State<BoardWorkspaceScreen> {
 
       return;
     }
+
+    _emitCursor(local, collab);
 
     if (tool == CanvasTool.select) {
       _updateDragSelected(local);
@@ -1109,6 +1129,7 @@ class _BoardWorkspaceScreenState extends State<BoardWorkspaceScreen> {
                                   showGrid: collab.showGrid,
                                   selectedObjectId:
                                   _selectedObjectId,
+                                  cursors: collab.cursors,
                                 ),
                               ),
                             ),
