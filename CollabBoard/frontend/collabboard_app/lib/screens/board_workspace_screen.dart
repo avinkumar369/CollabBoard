@@ -44,6 +44,13 @@ class _BoardWorkspaceScreenState extends State<BoardWorkspaceScreen> {
   CanvasObject? _dragSource;
   CanvasObject? _dragPreview;
 
+  /// Fixed extent of the drawing surface. The canvas is no longer limited to
+  /// one screen: pan and zoom out to reach the rest of it.
+  static const Size _canvasSize = Size(4000, 4000);
+
+  /// Visible area, used to zoom around the centre of the screen.
+  Size _viewportSize = Size.zero;
+
   @override
   void initState() {
     super.initState();
@@ -96,22 +103,24 @@ class _BoardWorkspaceScreenState extends State<BoardWorkspaceScreen> {
   }
 
   void _zoomIn() {
-    _setZoom((_currentScale + 0.2).clamp(0.5, 3.0));
+    _setZoom((_currentScale + 0.2).clamp(0.25, 3.0));
   }
 
   void _zoomOut() {
-    _setZoom((_currentScale - 0.2).clamp(0.5, 3.0));
+    _setZoom((_currentScale - 0.2).clamp(0.25, 3.0));
   }
 
   void _setZoom(double scale) {
-    final double target = scale.clamp(0.5, 3.0).toDouble();
+    final double target = scale.clamp(0.25, 3.0).toDouble();
 
     // Zoom around the centre of the canvas. Rebuilding the matrix from
     // scratch would discard the current pan offset and snap the view back
     // to the top-left corner.
-    final render = _canvasKey.currentContext?.findRenderObject();
-    final Size viewport =
-    render is RenderBox ? render.size : MediaQuery.of(context).size;
+    // The canvas is much larger than the screen now, so the focal point must
+    // come from the viewport, not from the canvas RenderBox.
+    final Size viewport = _viewportSize == Size.zero
+        ? MediaQuery.of(context).size
+        : _viewportSize;
     final Offset focal = Offset(viewport.width / 2, viewport.height / 2);
 
     final double current =
@@ -1055,38 +1064,57 @@ class _BoardWorkspaceScreenState extends State<BoardWorkspaceScreen> {
                     ),
 
                   Expanded(
-                    child: InteractiveViewer(
-                      transformationController:
-                      _transformationController,
-                      panEnabled: isHandTool,
-                      scaleEnabled: true,
-                      minScale: 0.5,
-                      maxScale: 3.0,
-                      child: GestureDetector(
-                        key: _canvasKey,
-                        behavior: HitTestBehavior.opaque,
-                        onTapDown: (details) =>
-                            _handleCanvasTap(details, collab),
-                        onPanStart: (details) =>
-                            _handlePanStart(details, collab),
-                        onPanUpdate: (details) =>
-                            _handlePanUpdate(details, collab),
-                        onPanEnd: (details) =>
-                            _handlePanEnd(details, collab),
-                        child: SizedBox.expand(
-                          child: CustomPaint(
-                            size: Size.infinite,
-                            painter: WhiteboardPainter(
-                              objects: painterObjects,
-                              currentPath: _currentPath,
-                              penColor: collab.selectedColor,
-                              penThickness: collab.penThickness,
-                              showGrid: collab.showGrid,
-                              selectedObjectId: _selectedObjectId,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        // Remember the visible area so zooming stays centred.
+                        _viewportSize = constraints.biggest;
+
+                        return InteractiveViewer(
+                          transformationController:
+                          _transformationController,
+                          panEnabled: isHandTool,
+                          scaleEnabled: true,
+                          minScale: 0.25,
+                          maxScale: 3.0,
+
+                          // The child is larger than the viewport, so it must
+                          // not be constrained to the viewport size.
+                          constrained: false,
+
+                          // A little slack so you can pan past the edges.
+                          boundaryMargin:
+                          const EdgeInsets.all(400),
+                          child: GestureDetector(
+                            key: _canvasKey,
+                            behavior: HitTestBehavior.opaque,
+                            onTapDown: (details) =>
+                                _handleCanvasTap(details, collab),
+                            onPanStart: (details) =>
+                                _handlePanStart(details, collab),
+                            onPanUpdate: (details) =>
+                                _handlePanUpdate(details, collab),
+                            onPanEnd: (details) =>
+                                _handlePanEnd(details, collab),
+                            child: SizedBox(
+                              width: _canvasSize.width,
+                              height: _canvasSize.height,
+                              child: CustomPaint(
+                                size: _canvasSize,
+                                painter: WhiteboardPainter(
+                                  objects: painterObjects,
+                                  currentPath: _currentPath,
+                                  penColor: collab.selectedColor,
+                                  penThickness:
+                                  collab.penThickness,
+                                  showGrid: collab.showGrid,
+                                  selectedObjectId:
+                                  _selectedObjectId,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
+                        );
+                      },
                     ),
                   ),
 
