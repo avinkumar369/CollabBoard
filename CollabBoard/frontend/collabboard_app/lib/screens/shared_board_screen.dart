@@ -241,8 +241,8 @@ class _SharedBoardScreenState extends State<SharedBoardScreen> {
             painter: WhiteboardPainter(
               objects: _objects,
               currentPath: const [],
-              penColor: const Color(0xFF5B4BDB),
               penThickness: 1,
+              penColor: const Color(0xFF5B4BDB),
               showGrid: true,
             ),
           ),

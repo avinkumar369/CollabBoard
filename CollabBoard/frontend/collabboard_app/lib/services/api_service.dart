@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+﻿import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -8,11 +8,11 @@ class ApiService {
       return 'http://localhost:5000/api';
     } else {
       // Android Emulator uses 10.0.2.2 to reach host machine localhost
-      return 'http://10.0.2.2:5000/api';
+      return 'http://localhost:5000/api';
     }
   }
 
-  static String _baseUrl = 'http://10.0.2.2:5000/api';
+  static String _baseUrl = 'http://localhost:5000/api';
 
   static Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
@@ -22,21 +22,21 @@ class ApiService {
       if (!kIsWeb && (saved.contains('localhost') || saved.contains('127.0.0.1'))) {
         _baseUrl = _defaultBaseUrl;
         await prefs.setString('custom_api_url', _defaultBaseUrl);
-        debugPrint('⚠️ Sanitized cached API URL from localhost to Android emulator host $_defaultBaseUrl');
+        debugPrint('âš ï¸ Sanitized cached API URL from localhost to Android emulator host $_defaultBaseUrl');
       } else {
         _baseUrl = saved;
       }
     } else {
       _baseUrl = _defaultBaseUrl;
     }
-    debugPrint('🌐 ApiService initialized with base URL: $_baseUrl');
+    debugPrint('ðŸŒ ApiService initialized with base URL: $_baseUrl');
   }
 
   static Future<void> setBaseUrl(String url) async {
     _baseUrl = url.endsWith('/api') ? url : '$url/api';
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('custom_api_url', _baseUrl);
-    debugPrint('🌐 ApiService base URL updated to: $_baseUrl');
+    debugPrint('ðŸŒ ApiService base URL updated to: $_baseUrl');
   }
 
   static String get currentBaseUrl => _baseUrl;
@@ -63,13 +63,13 @@ class ApiService {
   // Auth
   Future<Response> register(Map<String, dynamic> data) async {
     _dio.options.baseUrl = _baseUrl;
-    debugPrint('📤 POST $_baseUrl/auth/register');
+    debugPrint('ðŸ“¤ POST $_baseUrl/auth/register');
     return _dio.post('/auth/register', data: data);
   }
 
   Future<Response> login(Map<String, dynamic> data) async {
     _dio.options.baseUrl = _baseUrl;
-    debugPrint('📤 POST $_baseUrl/auth/login');
+    debugPrint('ðŸ“¤ POST $_baseUrl/auth/login');
     return _dio.post('/auth/login', data: data);
   }
 
@@ -146,3 +146,5 @@ class ApiService {
   Future<Response> getActivityLogs(int boardId, String token) =>
       _dio.get('/activity/$boardId', options: Options(headers: {'Authorization': 'Bearer $token'}));
 }
+
+
