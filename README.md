@@ -1,17 +1,36 @@
-# collabboard_complete
+# CollabBoard
 
-A new Flutter project.
+Real-time collaborative whiteboard: Flutter + Node.js + Socket.IO + MySQL.
 
-## Getting Started
+People draw on the same board, see each other's cursors live, and can share a
+read-only link with anyone - no account needed.
+## Features
 
-This project is a starting point for a Flutter application.
+- Pen, eraser, rectangle, circle, triangle, diamond, line and arrow tools
+- Text boxes and sticky notes
+- Select tool: tap to select, drag to move, delete
+- Infinite canvas with pan and 25%-300% zoom
+- Live cursors and presence over Socket.IO
+- Undo / redo, 50 steps, persisted to the server
+- Read-only share links and invitation codes
+- PNG export of the whole board
+- JWT auth with owner / editor / viewer roles
+## Run it
 
-A few resources to get you started if this is your first Flutter project:
+Backend: `cd CollabBoard/backend`, then `npm install`, copy `.env.example` to
+`.env`, load `database/schema.sql`, and run `npm start`.
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+Frontend: `cd CollabBoard/frontend/collabboard_app`, then `flutter pub get` and
+`flutter run`.
+API address by device: `10.0.2.2` for the Android emulator, `localhost` with
+`adb reverse tcp:5000 tcp:5000` over USB, or your PC's LAN IP on Wi-Fi. It is
+set in `lib/services/api_service.dart`.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Tests
+
+`flutter analyze && flutter test` in the app folder, or `.\check.ps1` from the
+repository root. GitHub Actions runs both on every push.
+
+## Author
+
+Avin Rathod
